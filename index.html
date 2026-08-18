@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WAX</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WAX">
 <style>
 :root {
   --bg:#0a0a0a; --surface:#141414; --surface2:#1c1c1c;
@@ -526,11 +530,6 @@ function checkPw(){
   }
 }
 document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')checkPw()});
-// Auto-login if previously authenticated
-if(localStorage.getItem('wax_auth')==='1'){
-  document.getElementById('auth-gate').classList.add('hidden');
-  init();
-}
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────────
 async function sbFetch(path,opts={}){
@@ -1192,6 +1191,38 @@ function sv(id,v){const el=document.getElementById(id);if(el)el.value=v}
 function J(v){return JSON.stringify(v)}
 let _tTmr=null;
 function toast(msg,dur=2200){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(_tTmr);_tTmr=setTimeout(()=>el.classList.remove('show'),dur)}
+
+// ── ICONS ──────────────────────────────────────────────────────────────────────
+(function(){
+  function iconURL(size){
+    const c=document.createElement('canvas');c.width=c.height=size;
+    const x=c.getContext('2d');
+    // Background
+    x.fillStyle='#0a0a0a';x.fillRect(0,0,size,size);
+    // Optional: rounded rect on larger sizes (iOS clips to rounded mask anyway)
+    // Amber "WAX" text
+    x.fillStyle='#f59e0b';
+    x.font=`900 ${Math.round(size*.28)}px -apple-system,system-ui,sans-serif`;
+    x.textAlign='center';x.textBaseline='middle';
+    x.fillText('WAX',size/2,size/2);
+    return c.toDataURL('image/png');
+  }
+  // Browser tab favicon (32px)
+  const fav=document.createElement('link');
+  fav.rel='icon';fav.type='image/png';fav.sizes='32x32';fav.href=iconURL(32);
+  document.head.appendChild(fav);
+  // iOS / Android home screen icon (180px — Apple recommended)
+  const atc=document.createElement('link');
+  atc.rel='apple-touch-icon';atc.href=iconURL(180);
+  document.head.appendChild(atc);
+})();
+
+// ── AUTO-LOGIN ─────────────────────────────────────────────────────────────────
+// Must run after all const declarations to avoid TDZ errors
+if(localStorage.getItem('wax_auth')==='1'){
+  document.getElementById('auth-gate').classList.add('hidden');
+  init();
+}
 </script>
 </body>
 </html>
