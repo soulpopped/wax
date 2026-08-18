@@ -248,9 +248,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
   </div>
   <div class="hrow2" id="frow">
-    <button class="flt-btn" id="fb-v" onclick="setFmt('VINYL')">🖤 VINYL</button>
-    <button class="flt-btn" id="fb-c" onclick="setFmt('CD')">💿 CD</button>
-    <button class="flt-btn" id="fb-k" onclick="setFmt('CASSETTE')">📼 CASS</button>
+    <button class="flt-btn" id="fb-v" onclick="setFmt('VINYL')">Vinyl</button>
+    <button class="flt-btn" id="fb-c" onclick="setFmt('CD')">CD</button>
+    <button class="flt-btn" id="fb-k" onclick="setFmt('CASSETTE')">Cassette</button>
     <div class="flt-sep"></div>
     <div class="dd" id="dd-genre">
       <button class="flt-btn" id="gb" onclick="toggleDD('dd-genre')">Genre ▾</button>
@@ -518,6 +518,7 @@ function simpleHash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.c
 function checkPw(){
   const v=document.getElementById('pw').value;
   if(simpleHash(v)===PW_HASH){
+    localStorage.setItem('wax_auth','1');
     document.getElementById('auth-gate').classList.add('hidden');
     init();
   } else {
@@ -526,10 +527,16 @@ function checkPw(){
   }
 }
 document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')checkPw()});
+// Auto-login if previously authenticated
+if(localStorage.getItem('wax_auth')==='1'){
+  document.getElementById('auth-gate').classList.add('hidden');
+  init();
+}
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────────
 async function sbFetch(path,opts={}){
-  const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:{...SB_H,...(opts.headers||{})}, ...opts});
+  const {headers:xh={},...rest}=opts;
+  const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:{...SB_H,...xh},...rest});
   if(!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
   return r.status===204?null:r.json();
 }
@@ -739,7 +746,7 @@ function card(r){
   return`<div class="rcard${sel?' sel':''}" data-id="${r.id}" onclick="cardClick(event,'${r.id}')">
     <div class="rart">
       ${art}
-      <span class="fmt-badge ${bcls}">${fmt}</span>
+      <span class="fmt-badge ${bcls}">${fmtLabel(fmt)}</span>
       ${showSub?`<span class="sub-badge">${eh(r.sub_format)}</span>`:''}
       <div class="ccheck${sel?' ck':''}" data-id="${r.id}">✓</div>
     </div>
@@ -792,7 +799,7 @@ function openDetail(id){
       <div class="dartist">${eh(r.artist||'')}</div>
       ${r.year?`<div class="dyear">${r.year}</div>`:''}
       <div class="drow">
-        <span class="fmt-badge ${bcls}" style="position:static">${fmt}</span>
+        <span class="fmt-badge ${bcls}" style="position:static">${fmtLabel(fmt)}</span>
         ${r.sub_format?`<span class="chip">${eh(r.sub_format)}</span>`:''}
         ${(r.num_discs||1)>1?`<span class="chip">${r.num_discs} discs</span>`:''}
         ${r.color_variant?`<span class="cpill">◉ ${eh(r.color_variant)}</span>`:''}
@@ -1006,7 +1013,7 @@ function showPrev(){
       <td>${r.cover?`<img class="pthumb" src="${eh(r.cover)}" onerror="this.style.display='none'">`:`<div class="pthumb" style="display:flex;align-items:center;justify-content:center">🎵</div>`}</td>
       <td><div class="ptitle">${eh(r.title)}</div>${p.dup?'<div style="font-size:.67rem;color:var(--accent)">Already in library</div>':r.color_variant?`<div class="psub">◉ ${eh(r.color_variant)}</div>`:''}</td>
       <td>${eh(r.artist||'')}</td>
-      <td><span class="fmt-badge ${bc}" style="position:static;font-size:.56rem">${fmt}</span>${r.sub_format&&r.sub_format!=='LP'?`<div class="psub">${eh(r.sub_format)}</div>`:''}</td>
+      <td><span class="fmt-badge ${bc}" style="position:static;font-size:.56rem">${fmtLabel(fmt)}</span>${r.sub_format&&r.sub_format!=='LP'?`<div class="psub">${eh(r.sub_format)}</div>`:''}</td>
       <td>${r.year||''}</td>
       <td style="max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${eh(r.label||'')}</td>
     </tr>`;
@@ -1049,8 +1056,8 @@ function openStats(){
   document.getElementById('stats-body').innerHTML=`
     <div class="sgrid">
       <div class="scard" onclick="resetAll();closeOv('ov-stats')"><div class="snum">${recs.length}</div><div class="slbl">Total Records</div></div>
-      <div class="scard" onclick="setFmt('VINYL');closeOv('ov-stats')"><div class="snum" style="color:#f59e0b">${vinyl}</div><div class="slbl">🖤 Vinyl</div></div>
-      <div class="scard" onclick="setFmt('CD');closeOv('ov-stats')"><div class="snum" style="color:#94a3b8">${cd}</div><div class="slbl">💿 CD</div></div>
+      <div class="scard" onclick="setFmt('VINYL');closeOv('ov-stats')"><div class="snum" style="color:#f59e0b">${vinyl}</div><div class="slbl">Vinyl</div></div>
+      <div class="scard" onclick="setFmt('CD');closeOv('ov-stats')"><div class="snum" style="color:#94a3b8">${cd}</div><div class="slbl">CD</div></div>
     </div>
     ${decades.length?`<div class="ssec"><div class="ssechtitle">By Decade</div>${decades.map(([d,c])=>`
       <div class="srow" onclick="setDec(${d});closeOv('ov-stats')">
@@ -1164,6 +1171,7 @@ document.addEventListener('keydown',e=>{
 
 // ── TINY UTILS ─────────────────────────────────────────────────────────────────
 function eh(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtLabel(f){return f==='VINYL'?'Vinyl':f==='CASSETTE'?'Cassette':'CD'}
 function norm(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
 function uid(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
