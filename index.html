@@ -185,7 +185,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .ddi{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:.82rem;color:var(--text-muted)}
 .ddi:hover{background:var(--surface2);color:var(--text)}
 .ddsep{border-top:1px solid var(--border);margin:3px 0}
-.glist{max-height:190px;overflow-y:auto}
+.glist{max-height:280px;overflow-y:auto}
+.ddi{display:flex;align-items:center;gap:8px}
 
 /* BUTTONS */
 .btn{padding:6px 13px;border-radius:var(--radius);cursor:pointer;font-size:.82rem;font-weight:500;border:1px solid var(--border2);background:var(--surface2);color:var(--text-muted);transition:all .15s}
@@ -204,6 +205,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #empty{text-align:center;padding:80px 20px;display:none;color:var(--text-dim)}
 #empty h2{font-size:1rem;color:var(--text-muted);margin-bottom:6px}
 #empty p{font-size:.83rem}
+
+/* ARTIST LINK */
+.artist-link{cursor:pointer;transition:color .15s}
+.artist-link:hover{color:var(--accent)!important}
 
 /* CARD HOVER EDIT */
 .card-edit{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.72);border:1px solid var(--border2);color:var(--text-muted);border-radius:3px;padding:2px 7px;font-size:.68rem;cursor:pointer;display:none;z-index:3;line-height:1.5}
@@ -287,6 +292,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="ddi" onclick="setSort('title','asc');closeDD()">Title A→Z</div>
         <div class="ddi" onclick="setSort('title','desc');closeDD()">Title Z→A</div>
         <div class="ddi" onclick="setSort('artist','asc');closeDD()">Artist A→Z</div>
+        <div class="ddi" onclick="setSort('artist','desc');closeDD()">Artist Z→A</div>
         <div class="ddi" onclick="setSort('year','desc');closeDD()">Year ↓</div>
         <div class="ddi" onclick="setSort('year','asc');closeDD()">Year ↑</div>
       </div>
@@ -308,6 +314,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <button class="mact" onclick="msDeselAll()">None</button>
   <button class="mact" onclick="bulkGenre()">+ Genre</button>
   <button class="mact" onclick="bulkFmt()">Format</button>
+  <button class="mact" onclick="bulkRenameArtist()">Artist</button>
   <button class="mact del" onclick="bulkDel()">Delete</button>
   <button class="mcls" onclick="exitMS()">✕</button>
 </div>
@@ -315,9 +322,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <!-- DETAIL MODAL -->
 <div class="overlay h" id="ov-detail" onclick="ovClick(event,'ov-detail')">
   <div class="modal wide" id="m-detail" style="position:relative">
-    <button class="btn sm" style="position:absolute;top:10px;left:10px;z-index:10" onclick="openEdit(curId)">Edit</button>
-    <button class="mcls-btn" style="position:absolute;top:8px;right:10px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
-    <div class="mbody" id="dbody" style="padding-top:40px"></div>
+    <button class="btn sm" style="position:absolute;top:12px;right:50px;z-index:10" onclick="openEdit(curId)">Edit</button>
+    <button class="mcls-btn" style="position:absolute;top:10px;right:12px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
+    <div class="mbody" id="dbody" style="padding-top:16px"></div>
   </div>
 </div>
 
@@ -522,6 +529,7 @@ let curId=null, editId=null;
 let prevRows=[], aborted=false;
 let bulkAct=null;
 let _ddTmr=null, _sqTmr=null;
+let _lastDgHTML='', _pendingDgRec=null;
 
 // ── AUTH ───────────────────────────────────────────────────────────────────────
 function simpleHash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h)}
@@ -676,9 +684,10 @@ async function load(){
 function buildDynF(){
   // genres
   const gc={};recs.forEach(r=>(r.genres||[]).forEach(g=>{gc[g]=(gc[g]||0)+1}));
-  const gs=Object.entries(gc).sort((a,b)=>b[1]-a[1]).map(([g])=>g);
-  document.getElementById('glist').innerHTML=gs.map(g=>`
-    <div class="ddi" onclick="setGenre(${J(g)});closeDD()">${eh(g)}</div>`).join('')||
+  const gs=Object.entries(gc).sort((a,b)=>a[0].localeCompare(b[0]));
+  const gHdr=gs.length?`<div style="padding:4px 10px 3px;font-size:.67rem;color:var(--text-dim);border-bottom:1px solid var(--border)">${gs.length} genres</div>`:'';
+  document.getElementById('glist').innerHTML=gHdr+gs.map(([g,c])=>`
+    <div class="ddi" onclick="setGenre(${J(g)});closeDD()">${eh(g)}<span style="margin-left:auto;color:var(--text-dim);font-size:.68rem">${c}</span></div>`).join('')||
     '<div style="padding:7px 10px;font-size:.76rem;color:var(--text-dim)">No genres yet</div>';
   // decades
   const dc={};recs.forEach(r=>{if(r.year){const d=Math.floor(r.year/10)*10;dc[d]=(dc[d]||0)+1}});
@@ -711,11 +720,21 @@ function setGenre(g){genreF=genreF===g?null:g;applyF()}
 function setDec(d){decF=decF===d?null:d;applyF()}
 function setSort(f,d){
   sortF=f;sortD=d;
-  const labels={date_added_desc:'Date Added ↓',date_added_asc:'Date Added ↑',title_asc:'Title A→Z',title_desc:'Title Z→A',artist_asc:'Artist A→Z',year_desc:'Year ↓',year_asc:'Year ↑'};
+  const labels={date_added_desc:'Date Added ↓',date_added_asc:'Date Added ↑',title_asc:'Title A→Z',title_desc:'Title Z→A',artist_asc:'Artist A→Z',artist_desc:'Artist Z→A',year_desc:'Year ↓',year_asc:'Year ↑'};
   document.getElementById('sort-lbl').textContent=(labels[f+'_'+d]||'Sort')+' ▾';
   applyF();
 }
-function onSearch(v){sq=v;document.getElementById('sqx').style.display=v?'block':'none';applyF()}
+function onSearch(v){
+  sq=v;
+  document.getElementById('sqx').style.display=v?'block':'none';
+  if(v){sortF='title';sortD='asc';document.getElementById('sort-lbl').textContent='Title A→Z ▾';}
+  applyF();
+}
+function filterByArtist(a){
+  if(!a) return;
+  const sq2=document.getElementById('sq');
+  sq2.value=a;onSearch(a);
+}
 function clearSearch(){document.getElementById('sq').value='';onSearch('')}
 function resetAll(){fmtF=null;genreF=null;decF=null;sq='';sortF='title';sortD='asc';document.getElementById('sq').value='';document.getElementById('sqx').style.display='none';document.getElementById('sort-lbl').textContent='Title A→Z ▾';applyF()}
 function updFUI(){
@@ -759,7 +778,7 @@ function card(r){
     </div>
     <div class="rmeta">
       <div class="rtitle">${eh(r.title||'Untitled')}</div>
-      <div class="rartist">${eh(r.artist||'')}</div>
+      <div class="rartist artist-link" onclick="event.stopPropagation();filterByArtist('${r.artist||''}')">${eh(r.artist||'')}</div>
       ${r.year?`<div class="ryear">${r.year}</div>`:''}
     </div>
   </div>`;
@@ -805,7 +824,7 @@ function openDetail(id){
     </div>
     <div class="dinfo">
       <div class="dtitle">${eh(r.title||'Untitled')}</div>
-      <div class="dartist">${eh(r.artist||'')}</div>
+      <div class="dartist artist-link" onclick="filterByArtist('${r.artist||''}');closeOv('ov-detail')">${eh(r.artist||'')}</div>
       ${r.year?`<div class="dyear">${r.year}</div>`:''}
       <div class="drow">
         <span class="fmt-badge ${bcls}" style="position:static">${fmtLabel(fmt)}</span>
@@ -830,6 +849,7 @@ function openAdd(){
   switchTab('search');
   document.getElementById('dsq').value='';
   document.getElementById('dresults').innerHTML='';
+  _lastDgHTML='';_pendingDgRec=null;
   openOv('ov-add');
 }
 function switchTab(t){
@@ -865,26 +885,72 @@ async function runDSearch(q){
     const data=await dgSearch(q);
     const rs=(data.results||[]).slice(0,10);
     if(!rs.length){el.innerHTML='<div style="color:var(--text-dim);font-size:.81rem;padding:8px">No results found</div>';return}
-    el.innerHTML=rs.map(r=>`<div class="dr" onclick="pickDg(${r.id})">
+    const html=rs.map(r=>`<div class="dr" onclick="pickDg(${r.id})">
       ${r.cover_image?`<img class="dthumb" src="${eh(r.cover_image)}" onerror="this.style.display='none'">`:`<div class="dthumb-ph">🎵</div>`}
       <div class="dri">
         <div class="drt">${eh(r.title)}</div>
-        <div class="drs">${[r.year,(r.format||[]).join(', '),r.label].filter(Boolean).join(' · ')}</div>
+        <div class="drs">${[r.year,(r.format||[]).join(', ')].filter(Boolean).join(' · ')}</div>
       </div>
     </div>`).join('');
+    _lastDgHTML=html;
+    el.innerHTML=html;
   }catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:.81rem;padding:8px">Error: ${eh(e.message)}</div>`}
 }
 async function pickDg(releaseId){
   const el=document.getElementById('dresults');
-  el.innerHTML='<div style="color:var(--text-dim);font-size:.81rem;padding:8px">Fetching release details…</div>';
+  el.innerHTML='<div style="color:var(--text-dim);font-size:.81rem;padding:8px">Fetching details…</div>';
   try{
     const data=await dgRelease(releaseId);
     const rec=buildFromDg(data,{});
-    await sbUpsert(rec);
-    recs.unshift(rec);applyF();buildDynF();
+    _pendingDgRec=rec;
+    // Build full format string from release data
+    const fmtStr=(data.formats||[]).map(f=>{
+      const parts=[];
+      if(f.qty&&parseInt(f.qty)>1) parts.push(f.qty+' ×');
+      parts.push(f.name);
+      if((f.descriptions||[]).length) parts.push(...f.descriptions);
+      let s=parts.join(', ');
+      if(f.text) s+=' — '+f.text;
+      return s;
+    }).join(' / ');
+    const allgenres=[...(data.genres||[]),...(data.styles||[])];
+    const tlen=(data.tracklist||[]).length;
+    const topTracks=(data.tracklist||[]).slice(0,6).map(t=>`<div style="display:flex;gap:7px;padding:2px 0;font-size:.73rem;border-bottom:1px solid var(--border)"><span style="color:var(--text-dim);min-width:24px">${eh(t.position)}</span><span style="flex:1;color:var(--text)">${eh(t.title)}</span>${t.duration?`<span style="color:var(--text-muted)">${eh(t.duration)}</span>`:''}</div>`).join('');
+    el.innerHTML=`
+      <div style="display:flex;gap:12px;margin-bottom:11px;align-items:flex-start">
+        <div style="flex-shrink:0;width:100px;height:100px;border-radius:4px;overflow:hidden;background:var(--surface2);border:1px solid var(--border)">
+          ${rec.cover?`<img src="${eh(rec.cover)}" style="width:100%;height:100%;object-fit:cover">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem">🎵</div>`}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.92rem;line-height:1.2;margin-bottom:4px">${eh(rec.title)}</div>
+          <div style="color:var(--accent);font-size:.83rem;margin-bottom:5px">${eh(rec.artist)}</div>
+          ${rec.year?`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:3px">${rec.year}</div>`:''}
+          ${fmtStr?`<div style="font-size:.73rem;color:var(--text-muted);margin-bottom:3px;line-height:1.4">${eh(fmtStr)}</div>`:''}
+          ${rec.label?`<div style="font-size:.72rem;color:var(--text-dim)">${eh(rec.label)}</div>`:''}
+        </div>
+      </div>
+      ${allgenres.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px">${allgenres.map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}</div>`:''}
+      ${topTracks?`<div style="margin-bottom:11px">${topTracks}${tlen>6?`<div style="font-size:.7rem;color:var(--text-dim);padding-top:4px">+${tlen-6} more tracks</div>`:''}</div>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="restoreDgResults()">← Back</button>
+        <button class="btn ac" onclick="confirmAddDg()">Add to Library</button>
+      </div>`;
+  }catch(e){
+    el.innerHTML=`<div style="color:var(--danger);font-size:.81rem;padding:8px">Error: ${eh(e.message)}</div><div style="padding:8px"><button class="btn" onclick="restoreDgResults()">← Back</button></div>`;
+  }
+}
+function restoreDgResults(){
+  document.getElementById('dresults').innerHTML=_lastDgHTML||'';
+  _pendingDgRec=null;
+}
+async function confirmAddDg(){
+  const rec=_pendingDgRec;if(!rec)return;
+  try{
+    await sbUpsert(rec);recs.unshift(rec);applyF();buildDynF();
+    _pendingDgRec=null;_lastDgHTML='';
     closeOv('ov-add');toast('Added: '+rec.title);
     setTimeout(()=>openDetail(rec.id),300);
-  }catch(e){toast('Error: '+e.message,4000);el.innerHTML=`<div style="color:var(--danger);font-size:.81rem;padding:8px">Error: ${eh(e.message)}</div>`}
+  }catch(e){toast('Error: '+e.message,4000)}
 }
 async function saveManual(){
   const title=document.getElementById('m-title').value.trim();
@@ -1091,9 +1157,9 @@ function openStats(){
   const genres=Object.entries(gc).sort((a,b)=>b[1]-a[1]);
 
   function rankList(items,rowFn){
-    const top=items.slice(0,5),rest=items.slice(5);
+    const top=items.slice(0,10),rest=items.slice(10);
     const rows=(arr,startIdx)=>arr.map(([n,c],i)=>`<div class="rank-item" onclick="${rowFn(n,c)}"><span class="rank-num">${startIdx+i+1}</span><span class="rank-name">${eh(n)}</span><span class="rank-cnt">${c}</span></div>`).join('');
-    return`<div class="rank-list">${rows(top,0)}${rest.length?`<div class="rank-more" style="display:none">${rows(rest,5)}</div><div class="rank-more-btn" onclick="this.previousElementSibling.style.display='block';this.style.display='none'">+${rest.length} more</div>`:''}</div>`;
+    return`<div class="rank-list">${rows(top,0)}${rest.length?`<div class="rank-more" style="display:none">${rows(rest,10)}</div><div class="rank-more-btn" onclick="this.previousElementSibling.style.display='block';this.style.display='none'">+${rest.length} more</div>`:''}</div>`;
   }
 
   const aHtml=artists.length?`<div><div class="ssechtitle">Artists</div>${rankList(artists,(n)=>`onSearch(${J(n)});document.getElementById('sq').value=${J(n)};document.getElementById('sqx').style.display='block';closeOv('ov-stats')`)}</div>`:'';
@@ -1124,6 +1190,12 @@ function bulkFmt(){
   document.getElementById('bulk-body').innerHTML=`<div class="fgrp"><label class="flbl">Format</label><select class="fsel" id="bl-fmt"><option value="VINYL">Vinyl</option><option value="CD">CD</option><option value="CASSETTE">Cassette</option></select></div>`;
   openOv('ov-bulk');
 }
+function bulkRenameArtist(){
+  bulkAct='artist';
+  document.getElementById('bulk-title').textContent='Rename Artist for Selected';
+  document.getElementById('bulk-body').innerHTML=`<div class="fgrp"><label class="flbl">New artist name (overwrites existing)</label><input type="text" class="finp" id="bl-artist" placeholder="e.g. Radiohead"></div>`;
+  openOv('ov-bulk');
+}
 async function applyBulk(){
   if(!bulkAct||!selIds.size)return;
   let done=0;
@@ -1132,6 +1204,7 @@ async function applyBulk(){
     let u={};
     if(bulkAct==='genre'){const gv=g('bl-genre');if(!gv)continue;u={genres:[...(r.genres||[]).filter(x=>x!==gv),gv],updated_at:new Date().toISOString()}}
     else if(bulkAct==='fmt'){const fv=document.getElementById('bl-fmt')?.value;u={formats:[fv],updated_at:new Date().toISOString()}}
+    else if(bulkAct==='artist'){const av=g('bl-artist');if(!av)continue;u={artist:av,updated_at:new Date().toISOString()}}
     try{await sbUpdate(id,u);Object.assign(r,u);done++;}catch(e){}
   }
   applyF();buildDynF();closeOv('ov-bulk');exitMS();toast(`Updated ${done} records`);
