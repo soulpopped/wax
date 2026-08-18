@@ -131,7 +131,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .flbl{display:block;font-size:.77rem;color:var(--text-muted);margin-bottom:4px}
 .finp,.fsel,.ftxt{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.84rem;outline:none;font-family:inherit}
 .finp:focus,.fsel:focus,.ftxt:focus{border-color:var(--accent)}
-.fsel{appearance:none}
+.fsel{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238a8070' d='M5 7L0 2h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:10px;padding-right:30px;cursor:pointer}
 .ftxt{resize:vertical;min-height:74px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .fhint{font-size:.7rem;color:var(--text-dim);margin-top:3px}
@@ -218,6 +218,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .rank-num{font-size:.7rem;color:var(--text-dim);min-width:18px;text-align:right;flex-shrink:0}
 .rank-name{font-size:.81rem;color:var(--text-muted);flex:1}
 .rank-cnt{font-size:.78rem;color:var(--accent);font-weight:700;flex-shrink:0;min-width:24px;text-align:right}
+.rank-more-btn{font-size:.73rem;color:var(--text-dim);padding:5px 0;cursor:pointer}
+.rank-more-btn:hover{color:var(--text-muted)}
+/* STATS 3-COL */
+.stats-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start;margin-top:14px}
+@media(max-width:640px){.stats-cols{grid-template-columns:1fr}}
+.modal.xl{max-width:1020px}
 
 /* SCROLL */
 ::-webkit-scrollbar{width:5px}
@@ -309,7 +315,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <!-- DETAIL MODAL -->
 <div class="overlay h" id="ov-detail" onclick="ovClick(event,'ov-detail')">
   <div class="modal wide" id="m-detail" style="position:relative">
-    <button class="btn sm" style="position:absolute;top:10px;right:40px;z-index:10" onclick="openEdit(curId)">Edit</button>
+    <button class="btn sm" style="position:absolute;top:10px;left:10px;z-index:10" onclick="openEdit(curId)">Edit</button>
     <button class="mcls-btn" style="position:absolute;top:8px;right:10px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
     <div class="mbody" id="dbody" style="padding-top:40px"></div>
   </div>
@@ -429,6 +435,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="fgrp"><label class="flbl">Title *</label><input type="text" class="finp" id="e-title"></div>
         <div class="fgrp"><label class="flbl">Artist</label><input type="text" class="finp" id="e-artist"></div>
       </div>
+      <div class="fgrp"><label class="flbl">Sort Title <span style="color:var(--text-dim);font-size:.68rem">(for alphabetical sort — e.g. "Beatles, The")</span></label><input type="text" class="finp" id="e-sorttitle" placeholder="Leave blank to sort by title as-is"></div>
       <div class="frow">
         <div class="fgrp"><label class="flbl">Year</label><input type="number" class="finp" id="e-year" min="1900" max="2099"></div>
         <div class="fgrp"><label class="flbl">Format</label>
@@ -436,7 +443,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
       </div>
       <div class="frow">
-        <div class="fgrp"><label class="flbl">Sub-format</label><input type="text" class="finp" id="e-sub"></div>
+        <div class="fgrp"><label class="flbl">Sub-format</label>
+          <select class="fsel" id="e-sub">
+            <option value="">—</option>
+            <option>LP</option><option>EP</option><option>7"</option><option>10"</option><option>12"</option>
+            <option>Single</option><option>Maxi-Single</option><option>Mini-Album</option>
+            <option>Album</option><option>Compilation</option><option>Promo</option>
+          </select>
+        </div>
         <div class="fgrp"><label class="flbl">Color / Variant</label><input type="text" class="finp" id="e-color"></div>
       </div>
       <div class="frow">
@@ -458,7 +472,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <!-- STATS MODAL -->
 <div class="overlay h" id="ov-stats" onclick="ovClick(event,'ov-stats')">
-  <div class="modal wide">
+  <div class="modal xl">
     <div class="mhdr"><div class="mtitle">Collection Stats</div><button class="mcls-btn" onclick="closeOv('ov-stats')">✕</button></div>
     <div class="mbody" id="stats-body"></div>
   </div>
@@ -682,9 +696,10 @@ function applyF(){
   if(decF) r=r.filter(x=>x.year&&Math.floor(x.year/10)*10===decF);
   if(sq){const q=norm(sq);r=r.filter(x=>norm(x.title||'').includes(q)||norm(x.artist||'').includes(q)||norm(x.label||'').includes(q)||(x.genres||[]).some(g=>norm(g).includes(q)));}
   r.sort((a,b)=>{
-    let va=a[sortF],vb=b[sortF];
-    if(sortF==='title'||sortF==='artist'){va=norm(va||'');vb=norm(vb||'');}
-    else{va=va||'';vb=vb||'';}
+    let va,vb;
+    if(sortF==='title'){va=norm(a.sort_title||a.title||'');vb=norm(b.sort_title||b.title||'');}
+    else if(sortF==='artist'){va=norm(a.artist||'');vb=norm(b.artist||'');}
+    else{va=a[sortF]||'';vb=b[sortF]||'';}
     if(va<vb) return sortD==='asc'?-1:1;
     if(va>vb) return sortD==='asc'?1:-1;
     return 0;
@@ -769,7 +784,6 @@ function msDeselAll(){selIds.clear();document.getElementById('mcnt').textContent
 function openDetail(id){
   const r=recs.find(x=>x.id===id);if(!r) return;
   curId=id;
-  document.getElementById('dtitle').textContent='';
   const fmt=(r.formats||['VINYL'])[0];
   const bcls=fmt==='CD'?'badge-c':fmt==='CASSETTE'?'badge-k':'badge-v';
   const allgenres=[...(r.genres||[]),...(r.styles||[])];
@@ -900,25 +914,37 @@ function openEdit(id){
   const r=recs.find(x=>x.id===id);if(!r)return;
   editId=id;
   sv('e-title',r.title||'');sv('e-artist',r.artist||'');sv('e-year',r.year||'');
+  sv('e-sorttitle',r.sort_title||'');
   const ef=document.getElementById('e-fmt');if(ef) ef.value=(r.formats||['VINYL'])[0];
-  sv('e-sub',r.sub_format||'');sv('e-color',r.color_variant||'');
+  const es=document.getElementById('e-sub');
+  if(es){
+    const sub=r.sub_format||'';
+    // Try to select the existing value; if not in options, add it temporarily
+    es.value=sub;
+    if(es.value!==sub&&sub){const o=document.createElement('option');o.value=sub;o.text=sub;es.appendChild(o);es.value=sub;}
+  }
+  sv('e-color',r.color_variant||'');
   sv('e-label',r.label||'');sv('e-cat',r.catalog_number||'');
   sv('e-genres',(r.genres||[]).join(', '));
   sv('e-did',r.discogs_id||'');sv('e-cover',r.cover||'');sv('e-notes',r.notes||'');
   closeOv('ov-detail');openOv('ov-edit');
 }
-async function saveEdit(){
-  const id=editId;if(!id)return;
-  const title=g('e-title');if(!title){toast('Title required');return}
-  const updates={
-    title,artist:g('e-artist')||null,year:parseInt(g('e-year'))||null,
+function collectEdits(){
+  return{
+    title:g('e-title'),artist:g('e-artist')||null,year:parseInt(g('e-year'))||null,
+    sort_title:g('e-sorttitle')||null,
     formats:[document.getElementById('e-fmt').value],
-    sub_format:g('e-sub')||null,color_variant:g('e-color')||null,
+    sub_format:document.getElementById('e-sub').value||null,
+    color_variant:g('e-color')||null,
     label:g('e-label')||null,catalog_number:g('e-cat')||null,
     genres:g('e-genres').split(',').map(s=>s.trim()).filter(Boolean),
     discogs_id:g('e-did')||null,cover:g('e-cover')||null,
     notes:g('e-notes')||null,updated_at:new Date().toISOString()
   };
+}
+async function saveEdit(){
+  const id=editId;if(!id)return;
+  const updates=collectEdits();if(!updates.title){toast('Title required');return}
   try{
     await sbUpdate(id,updates);
     const i=recs.findIndex(x=>x.id===id);if(i>=0) recs[i]={...recs[i],...updates};
@@ -927,22 +953,14 @@ async function saveEdit(){
 }
 async function saveEditNext(){
   const id=editId;if(!id)return;
-  const title=g('e-title');if(!title){toast('Title required');return}
-  const updates={
-    title,artist:g('e-artist')||null,year:parseInt(g('e-year'))||null,
-    formats:[document.getElementById('e-fmt').value],
-    sub_format:g('e-sub')||null,color_variant:g('e-color')||null,
-    label:g('e-label')||null,catalog_number:g('e-cat')||null,
-    genres:g('e-genres').split(',').map(s=>s.trim()).filter(Boolean),
-    discogs_id:g('e-did')||null,cover:g('e-cover')||null,
-    notes:g('e-notes')||null,updated_at:new Date().toISOString()
-  };
+  const updates=collectEdits();if(!updates.title){toast('Title required');return}
+  // Capture next record BEFORE re-sorting
+  const fi=filtered.findIndex(r=>r.id===id);
+  const next=fi>=0&&fi+1<filtered.length?filtered[fi+1]:null;
   try{
     await sbUpdate(id,updates);
     const i=recs.findIndex(x=>x.id===id);if(i>=0) recs[i]={...recs[i],...updates};
     applyF();buildDynF();
-    const fi=filtered.findIndex(r=>r.id===id);
-    const next=fi>=0&&fi+1<filtered.length?filtered[fi+1]:null;
     closeOv('ov-edit');toast('Saved');
     if(next) setTimeout(()=>openEdit(next.id),200);
   }catch(e){toast('Error: '+e.message,4000)}
@@ -1066,20 +1084,29 @@ function openStats(){
   const cd=recs.filter(r=>(r.formats||[]).includes('CD')).length;
   const VARIOUS=/^various(\s+artists)?$/i;
   const ac={};recs.forEach(r=>{if(r.artist&&!VARIOUS.test(r.artist.trim()))ac[r.artist]=(ac[r.artist]||0)+1});
-  const artists=Object.entries(ac).sort((a,b)=>b[1]-a[1]).slice(0,15).filter(([,c])=>c>1);
+  const artists=Object.entries(ac).sort((a,b)=>b[1]-a[1]).filter(([,c])=>c>1);
   const dc={};recs.forEach(r=>{if(r.year){const d=Math.floor(r.year/10)*10;dc[d]=(dc[d]||0)+1}});
   const decades=Object.entries(dc).sort((a,b)=>b[1]-a[1]);
   const gc={};recs.forEach(r=>(r.genres||[]).forEach(g=>{gc[g]=(gc[g]||0)+1}));
-  const genres=Object.entries(gc).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const genres=Object.entries(gc).sort((a,b)=>b[1]-a[1]);
+
+  function rankList(items,rowFn){
+    const top=items.slice(0,5),rest=items.slice(5);
+    const rows=(arr,startIdx)=>arr.map(([n,c],i)=>`<div class="rank-item" onclick="${rowFn(n,c)}"><span class="rank-num">${startIdx+i+1}</span><span class="rank-name">${eh(n)}</span><span class="rank-cnt">${c}</span></div>`).join('');
+    return`<div class="rank-list">${rows(top,0)}${rest.length?`<div class="rank-more" style="display:none">${rows(rest,5)}</div><div class="rank-more-btn" onclick="this.previousElementSibling.style.display='block';this.style.display='none'">+${rest.length} more</div>`:''}</div>`;
+  }
+
+  const aHtml=artists.length?`<div><div class="ssechtitle">Artists</div>${rankList(artists,(n)=>`onSearch(${J(n)});document.getElementById('sq').value=${J(n)};document.getElementById('sqx').style.display='block';closeOv('ov-stats')`)}</div>`:'';
+  const dHtml=decades.length?`<div><div class="ssechtitle">By Decade</div>${rankList(decades,(n)=>`setDec(${n});closeOv('ov-stats')`)}</div>`:'';
+  const gHtml=genres.length?`<div><div class="ssechtitle">Genres</div>${rankList(genres,(n)=>`setGenre(${J(n)});closeOv('ov-stats')`)}</div>`:'';
+
   document.getElementById('stats-body').innerHTML=`
     <div class="sgrid">
       <div class="scard" onclick="resetAll();closeOv('ov-stats')"><div class="snum">${recs.length}</div><div class="slbl">Total Records</div></div>
       <div class="scard" onclick="setFmt('VINYL');closeOv('ov-stats')"><div class="snum" style="color:#f59e0b">${vinyl}</div><div class="slbl">Vinyl</div></div>
       <div class="scard" onclick="setFmt('CD');closeOv('ov-stats')"><div class="snum" style="color:#94a3b8">${cd}</div><div class="slbl">CD</div></div>
     </div>
-    ${artists.length?`<div class="ssec"><div class="ssechtitle">Artists</div><div class="rank-list">${artists.map(([a,c],i)=>`<div class="rank-item" onclick="onSearch(${J(a)});document.getElementById('sq').value=${J(a)};document.getElementById('sqx').style.display='block';closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${eh(a)}</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
-    ${decades.length?`<div class="ssec"><div class="ssechtitle">By Decade</div><div class="rank-list">${decades.map(([d,c],i)=>`<div class="rank-item" onclick="setDec(${d});closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${d}s</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
-    ${genres.length?`<div class="ssec"><div class="ssechtitle">Genres</div><div class="rank-list">${genres.map(([g,c],i)=>`<div class="rank-item" onclick="setGenre(${J(g)});closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${eh(g)}</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
+    <div class="stats-cols">${aHtml}${dHtml}${gHtml}</div>
   `;
   openOv('ov-stats');
 }
