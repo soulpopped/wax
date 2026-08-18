@@ -233,6 +233,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* SCROLL */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+/* PUBLIC MODE */
+body.public-mode #ms-btn,
+body.public-mode .btn-pri,
+body.public-mode .card-edit,
+body.public-mode #m-detail .btn.sm,
+body.public-mode #mbar{display:none!important}
+.pub-badge{font-size:.68rem;color:var(--text-dim);border:1px solid var(--border2);border-radius:10px;padding:2px 8px;letter-spacing:.03em}
 </style>
 </head>
 <body>
@@ -259,6 +266,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="hspacer"></div>
     <div class="hactions">
+      <span class="pub-badge" id="pub-badge" style="display:none">View only</span>
       <button class="btn-ico" id="ms-btn" onclick="toggleMS()" title="Multi-select">☰</button>
       <button class="btn-pri" onclick="openAdd()">+ Add</button>
       <button class="btn-ico" onclick="openStats()">Stats</button>
@@ -540,6 +548,7 @@ const COLOR_MAP={
 };
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
+const isPublic=new URLSearchParams(location.search).has('public');
 let recs=[], filtered=[];
 let fmtF=null, genreF=null, decF=null, sq='';
 let sortF='title', sortD='asc';
@@ -830,7 +839,7 @@ function openDetail(id){
     <div class="tlist">
       <div style="display:flex;align-items:center;gap:8px">
         ${tlen?`<button class="ctog" onclick="this.closest('.tlist').querySelector('.collp').classList.toggle('open');this.textContent=this.closest('.tlist').querySelector('.collp').classList.contains('open')?'▼ Tracklist (${tlen})':'▶ Tracklist (${tlen})'">▼ Tracklist (${tlen})</button>`:'<span style="font-size:.75rem;color:var(--text-dim)">No tracklist</span>'}
-        <button class="ctog" style="font-size:.68rem;opacity:.7" onclick="openTracklist('${r.id}')">Edit Tracklist</button>
+        ${!isPublic?`<button class="ctog" style="font-size:.68rem;opacity:.7" onclick="openTracklist('${r.id}')">Edit Tracklist</button>`:''}
       </div>
       ${tlen?`<div class="collp open">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>`:''}
     </div>`;
@@ -869,6 +878,7 @@ function openDetail(id){
 
 // ── ADD ────────────────────────────────────────────────────────────────────────
 function openAdd(){
+  if(isPublic)return;
   fixMatchId=null;
   document.getElementById('add-mtitle').textContent='Add Record';
   switchTab('search');
@@ -1026,6 +1036,7 @@ async function saveManual(){
 
 // ── EDIT ───────────────────────────────────────────────────────────────────────
 function openEdit(id){
+  if(isPublic)return;
   const r=recs.find(x=>x.id===id);if(!r)return;
   editId=id;
   sv('e-title',r.title||'');sv('e-artist',r.artist||'');sv('e-year',r.year||'');
@@ -1427,7 +1438,12 @@ function toast(msg,dur=2200){const el=document.getElementById('toast');el.textCo
 
 // ── AUTO-LOGIN ─────────────────────────────────────────────────────────────────
 // Must run after all const declarations to avoid TDZ errors
-if(localStorage.getItem('wax_auth')==='1'){
+if(isPublic){
+  document.body.classList.add('public-mode');
+  document.getElementById('pub-badge').style.display='';
+  document.getElementById('auth-gate').classList.add('hidden');
+  init();
+} else if(localStorage.getItem('wax_auth')==='1'){
   document.getElementById('auth-gate').classList.add('hidden');
   init();
 }
