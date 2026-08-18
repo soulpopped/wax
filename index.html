@@ -205,6 +205,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #empty h2{font-size:1rem;color:var(--text-muted);margin-bottom:6px}
 #empty p{font-size:.83rem}
 
+/* CARD HOVER EDIT */
+.card-edit{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.72);border:1px solid var(--border2);color:var(--text-muted);border-radius:3px;padding:2px 7px;font-size:.68rem;cursor:pointer;display:none;z-index:3;line-height:1.5}
+.rcard:hover .card-edit{display:block}
+.card-edit:hover{border-color:var(--accent);color:var(--accent)}
+
+/* RANKED STATS LIST */
+.rank-list{padding:0}
+.rank-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.rank-item:last-child{border-bottom:none}
+.rank-item:hover .rank-name{color:var(--accent)}
+.rank-num{font-size:.7rem;color:var(--text-dim);min-width:18px;text-align:right;flex-shrink:0}
+.rank-name{font-size:.81rem;color:var(--text-muted);flex:1}
+.rank-cnt{font-size:.78rem;color:var(--accent);font-weight:700;flex-shrink:0;min-width:24px;text-align:right}
+
 /* SCROLL */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -236,18 +250,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="hactions">
       <button class="btn-ico" id="ms-btn" onclick="toggleMS()" title="Multi-select">☰</button>
       <button class="btn-pri" onclick="openAdd()">+ Add</button>
-      <div class="dd" id="dd-more">
-        <button class="btn-ico" onclick="toggleDD('dd-more')">⋯</button>
-        <div class="ddmenu">
-          <div class="ddi" onclick="openImport();closeDD()">📥 Import CSV</div>
-          <div class="ddi" onclick="openStats();closeDD()">📊 Stats</div>
-          <div class="ddsep"></div>
-          <div class="ddi" onclick="dlBackup();closeDD()">⬇ Download Backup</div>
-          <div class="ddi" onclick="document.getElementById('restore-in').click();closeDD()">⬆ Restore Backup</div>
-          <div class="ddsep"></div>
-          <div class="ddi" onclick="openCred();closeDD()">🔑 Credentials</div>
-        </div>
-      </div>
+      <button class="btn-ico" onclick="openStats()">Stats</button>
     </div>
   </div>
   <div class="hrow2" id="frow">
@@ -295,6 +298,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <!-- MULTI BAR -->
 <div id="mbar">
   <span class="mcount" id="mcnt">0 selected</span>
+  <button class="mact" onclick="msSelAll()">All</button>
+  <button class="mact" onclick="msDeselAll()">None</button>
   <button class="mact" onclick="bulkGenre()">+ Genre</button>
   <button class="mact" onclick="bulkFmt()">Format</button>
   <button class="mact del" onclick="bulkDel()">Delete</button>
@@ -303,13 +308,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <!-- DETAIL MODAL -->
 <div class="overlay h" id="ov-detail" onclick="ovClick(event,'ov-detail')">
-  <div class="modal wide" id="m-detail">
-    <div class="mhdr">
-      <div class="mtitle" id="dtitle"></div>
-      <button class="btn sm" onclick="openEdit(curId)">Edit</button>
-      <button class="mcls-btn" onclick="closeOv('ov-detail')">✕</button>
-    </div>
-    <div class="mbody" id="dbody"></div>
+  <div class="modal wide" id="m-detail" style="position:relative">
+    <button class="btn sm" style="position:absolute;top:10px;right:40px;z-index:10" onclick="openEdit(curId)">Edit</button>
+    <button class="mcls-btn" style="position:absolute;top:8px;right:10px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
+    <div class="mbody" id="dbody" style="padding-top:40px"></div>
   </div>
 </div>
 
@@ -324,6 +326,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="tabs">
         <button class="tbtn on" onclick="switchTab('search')">Search Discogs</button>
         <button class="tbtn" onclick="switchTab('manual')">Manual Entry</button>
+        <button class="tbtn" onclick="switchTab('import')">Import CSV</button>
+        <button class="tbtn" onclick="switchTab('settings')">Backup &amp; Settings</button>
       </div>
       <!-- SEARCH TAB -->
       <div class="tpane on" id="tp-search">
@@ -359,6 +363,54 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <button class="btn" onclick="clearManual()">Clear</button>
           <button class="btn ac" onclick="saveManual()">Save Record</button>
         </div>
+      </div>
+      <!-- IMPORT TAB -->
+      <div class="tpane" id="tp-import">
+        <div id="i-upload">
+          <p style="color:var(--text-muted);font-size:.84rem;margin-bottom:14px">Upload your Discogs collection export CSV. Release details and cover art will be fetched automatically from the Discogs API (~1 sec per record to respect rate limits).</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label class="btn ac" style="cursor:pointer">Choose CSV
+              <input type="file" accept=".csv" id="csv-in" style="display:none" onchange="handleCSV(event)">
+            </label>
+            <span id="csv-fname" style="color:var(--text-muted);font-size:.81rem"></span>
+          </div>
+        </div>
+        <div id="i-prog" style="display:none;text-align:center;padding:20px 0">
+          <div id="i-prog-lbl" style="font-size:.88rem;margin-bottom:8px;color:var(--text-muted)">Fetching release data…</div>
+          <div class="ibar-wrap"><div class="ibar" id="ibar"></div></div>
+          <div style="font-size:.78rem;color:var(--text-dim)" id="i-prog-st">0 / 0</div>
+          <button class="btn sm" style="margin-top:10px" onclick="abortImport()">Cancel</button>
+        </div>
+        <div id="i-prev" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span id="prev-lbl" style="font-size:.81rem;color:var(--text-muted)"></span>
+            <div style="display:flex;gap:6px">
+              <button class="btn sm" onclick="prevSelAll(true)">All</button>
+              <button class="btn sm" onclick="prevSelAll(false)">None</button>
+            </div>
+          </div>
+          <div style="max-height:360px;overflow-y:auto">
+            <table class="ptbl" id="prev-tbl">
+              <thead><tr><th style="width:28px"></th><th style="width:40px"></th><th>Title</th><th>Artist</th><th>Format</th><th>Year</th><th>Label</th></tr></thead>
+              <tbody id="prev-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="i-foot" style="display:none;justify-content:flex-end;gap:8px;margin-top:12px">
+          <button class="btn" onclick="closeOv('ov-add')">Cancel</button>
+          <button class="btn ac" id="i-confirm" onclick="confirmImport()">Import Selected</button>
+        </div>
+      </div>
+      <!-- SETTINGS TAB -->
+      <div class="tpane" id="tp-settings">
+        <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+          <button class="btn" onclick="dlBackup()">⬇ Download Backup</button>
+          <button class="btn" onclick="document.getElementById('restore-in').click()">⬆ Restore Backup</button>
+        </div>
+        <div class="fgrp"><label class="flbl">Supabase URL</label><input type="text" class="finp" id="cr-url" readonly></div>
+        <div class="fgrp"><label class="flbl">Supabase Anon Key</label><input type="text" class="finp" id="cr-key" readonly></div>
+        <div class="fgrp"><label class="flbl">Discogs Personal Access Token</label><input type="text" class="finp" id="cr-tok" readonly></div>
+        <p class="fhint">These are hardcoded in the app HTML. Edit the file to change them permanently.</p>
       </div>
     </div>
   </div>
@@ -398,53 +450,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="mfoot">
       <button class="btn" onclick="closeOv('ov-edit')">Cancel</button>
-      <button class="btn ac" onclick="saveEdit()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- IMPORT MODAL -->
-<div class="overlay h" id="ov-import" onclick="ovClick(event,'ov-import')">
-  <div class="modal wide">
-    <div class="mhdr">
-      <div class="mtitle">Import Discogs CSV</div>
-      <button class="mcls-btn" onclick="closeOv('ov-import')">✕</button>
-    </div>
-    <div class="mbody" id="ibody">
-      <div id="i-upload">
-        <p style="color:var(--text-muted);font-size:.84rem;margin-bottom:14px">Upload your Discogs collection export CSV. Release details and cover art will be fetched automatically from the Discogs API (~1 sec per record to respect rate limits).</p>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label class="btn ac" style="cursor:pointer">Choose CSV
-            <input type="file" accept=".csv" id="csv-in" style="display:none" onchange="handleCSV(event)">
-          </label>
-          <span id="csv-fname" style="color:var(--text-muted);font-size:.81rem"></span>
-        </div>
-      </div>
-      <div id="i-prog" style="display:none;text-align:center;padding:20px 0">
-        <div id="i-prog-lbl" style="font-size:.88rem;margin-bottom:8px;color:var(--text-muted)">Fetching release data…</div>
-        <div class="ibar-wrap"><div class="ibar" id="ibar"></div></div>
-        <div style="font-size:.78rem;color:var(--text-dim)" id="i-prog-st">0 / 0</div>
-        <button class="btn sm" style="margin-top:10px" onclick="abortImport()">Cancel</button>
-      </div>
-      <div id="i-prev" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
-          <span id="prev-lbl" style="font-size:.81rem;color:var(--text-muted)"></span>
-          <div style="display:flex;gap:6px">
-            <button class="btn sm" onclick="prevSelAll(true)">All</button>
-            <button class="btn sm" onclick="prevSelAll(false)">None</button>
-          </div>
-        </div>
-        <div style="max-height:360px;overflow-y:auto">
-          <table class="ptbl" id="prev-tbl">
-            <thead><tr><th style="width:28px"></th><th style="width:40px"></th><th>Title</th><th>Artist</th><th>Format</th><th>Year</th><th>Label</th></tr></thead>
-            <tbody id="prev-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div class="mfoot" id="i-foot" style="display:none">
-      <button class="btn" onclick="closeOv('ov-import')">Cancel</button>
-      <button class="btn ac" id="i-confirm" onclick="confirmImport()">Import Selected</button>
+      <button class="btn ac" onclick="saveEdit()">Save</button>
+      <button class="btn ac" onclick="saveEditNext()">Save ▶</button>
     </div>
   </div>
 </div>
@@ -454,20 +461,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="modal wide">
     <div class="mhdr"><div class="mtitle">Collection Stats</div><button class="mcls-btn" onclick="closeOv('ov-stats')">✕</button></div>
     <div class="mbody" id="stats-body"></div>
-  </div>
-</div>
-
-<!-- CREDENTIALS MODAL -->
-<div class="overlay h" id="ov-cred" onclick="ovClick(event,'ov-cred')">
-  <div class="modal">
-    <div class="mhdr"><div class="mtitle">Credentials</div><button class="mcls-btn" onclick="closeOv('ov-cred')">✕</button></div>
-    <div class="mbody">
-      <div class="fgrp"><label class="flbl">Supabase URL</label><input type="text" class="finp" id="cr-url"></div>
-      <div class="fgrp"><label class="flbl">Supabase Anon Key</label><input type="text" class="finp" id="cr-key"></div>
-      <div class="fgrp"><label class="flbl">Discogs Personal Access Token</label><input type="text" class="finp" id="cr-tok"></div>
-      <p class="fhint">These are hardcoded in the app HTML. Edit the file to change them permanently.</p>
-    </div>
-    <div class="mfoot"><button class="btn" onclick="closeOv('ov-cred')">Close</button></div>
   </div>
 </div>
 
@@ -747,6 +740,7 @@ function card(r){
       <span class="fmt-badge ${bcls}">${fmtLabel(fmt)}</span>
       ${showSub?`<span class="sub-badge">${eh(r.sub_format)}</span>`:''}
       <div class="ccheck${sel?' ck':''}" data-id="${r.id}">✓</div>
+      <button class="card-edit" onclick="event.stopPropagation();openEdit('${r.id}')">Edit</button>
     </div>
     <div class="rmeta">
       <div class="rtitle">${eh(r.title||'Untitled')}</div>
@@ -768,6 +762,8 @@ function toggleSel(id){
 }
 function toggleMS(){msMode=!msMode;if(!msMode)exitMS();else{document.getElementById('ms-btn').classList.add('on');renderGrid()}}
 function exitMS(){msMode=false;selIds.clear();document.getElementById('mbar').classList.remove('on');document.getElementById('ms-btn').classList.remove('on');renderGrid()}
+function msSelAll(){filtered.forEach(r=>selIds.add(r.id));document.getElementById('mcnt').textContent=selIds.size+' selected';document.getElementById('mbar').classList.add('on');renderGrid()}
+function msDeselAll(){selIds.clear();document.getElementById('mcnt').textContent='0 selected';document.getElementById('mbar').classList.remove('on');renderGrid()}
 
 // ── DETAIL ─────────────────────────────────────────────────────────────────────
 function openDetail(id){
@@ -777,7 +773,6 @@ function openDetail(id){
   const fmt=(r.formats||['VINYL'])[0];
   const bcls=fmt==='CD'?'badge-c':fmt==='CASSETTE'?'badge-k':'badge-v';
   const allgenres=[...(r.genres||[]),...(r.styles||[])];
-  const catNum=r.catalog_number&&!/^\d{10,}$/.test(r.catalog_number.trim())?r.catalog_number:null;
   const tlen=(r.tracklist||[]).length;
   const tlHtml=tlen?`
     <div class="tlist">
@@ -804,7 +799,7 @@ function openDetail(id){
         ${(r.num_discs||1)>1?`<span class="chip">${r.num_discs} discs</span>`:''}
         ${r.color_variant?`<span class="cpill">◉ ${eh(r.color_variant)}</span>`:''}
       </div>
-      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}${catNum?' · '+eh(catNum):''}</span></div>`:''}
+      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}</span></div>`:''}
       ${allgenres.length?`<div class="drow" style="flex-wrap:wrap;gap:4px">
         ${allgenres.slice(0,3).map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}
         ${allgenres.length>3?`<button class="ctog" style="font-size:.7rem;padding:1px 6px;border:1px solid var(--border2);border-radius:10px" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">+${allgenres.length-3} more</button><span style="display:none">${allgenres.slice(3).map(g=>`<span class="chip chip-a" style="margin:1px">${eh(g)}</span>`).join('')}</span>`:''}
@@ -824,10 +819,22 @@ function openAdd(){
   openOv('ov-add');
 }
 function switchTab(t){
-  document.querySelectorAll('.tabs .tbtn').forEach((b,i)=>b.classList.toggle('on',(i===0&&t==='search')||(i===1&&t==='manual')));
-  document.getElementById('tp-search').classList.toggle('on',t==='search');
-  document.getElementById('tp-manual').classList.toggle('on',t==='manual');
+  const tabs=['search','manual','import','settings'];
+  document.querySelectorAll('.tabs .tbtn').forEach((b,i)=>b.classList.toggle('on',tabs[i]===t));
+  tabs.forEach(n=>{const p=document.getElementById('tp-'+n);if(p)p.classList.toggle('on',n===t)});
   if(t==='manual') clearManual();
+  if(t==='import') resetImportTab();
+  if(t==='settings'){document.getElementById('cr-url').value=SB_URL;document.getElementById('cr-key').value=SB_KEY;document.getElementById('cr-tok').value=DG_TOKEN;}
+  document.getElementById('m-add').classList.toggle('wide',t==='import');
+}
+function resetImportTab(){
+  const u=document.getElementById('i-upload'),p=document.getElementById('i-prog'),
+        v=document.getElementById('i-prev'),f=document.getElementById('i-foot');
+  if(u)u.style.display='block';if(p)p.style.display='none';
+  if(v)v.style.display='none';if(f)f.style.display='none';
+  const fn=document.getElementById('csv-fname');if(fn)fn.textContent='';
+  const ci=document.getElementById('csv-in');if(ci)ci.value='';
+  prevRows=[];
 }
 function clearManual(){['m-title','m-artist','m-year','m-sub','m-color','m-label','m-cat','m-genres','m-cover','m-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const mf=document.getElementById('m-fmt');if(mf)mf.value='VINYL';}
 
@@ -918,6 +925,28 @@ async function saveEdit(){
     applyF();buildDynF();closeOv('ov-edit');toast('Saved');
   }catch(e){toast('Error: '+e.message,4000)}
 }
+async function saveEditNext(){
+  const id=editId;if(!id)return;
+  const title=g('e-title');if(!title){toast('Title required');return}
+  const updates={
+    title,artist:g('e-artist')||null,year:parseInt(g('e-year'))||null,
+    formats:[document.getElementById('e-fmt').value],
+    sub_format:g('e-sub')||null,color_variant:g('e-color')||null,
+    label:g('e-label')||null,catalog_number:g('e-cat')||null,
+    genres:g('e-genres').split(',').map(s=>s.trim()).filter(Boolean),
+    discogs_id:g('e-did')||null,cover:g('e-cover')||null,
+    notes:g('e-notes')||null,updated_at:new Date().toISOString()
+  };
+  try{
+    await sbUpdate(id,updates);
+    const i=recs.findIndex(x=>x.id===id);if(i>=0) recs[i]={...recs[i],...updates};
+    applyF();buildDynF();
+    const fi=filtered.findIndex(r=>r.id===id);
+    const next=fi>=0&&fi+1<filtered.length?filtered[fi+1]:null;
+    closeOv('ov-edit');toast('Saved');
+    if(next) setTimeout(()=>openEdit(next.id),200);
+  }catch(e){toast('Error: '+e.message,4000)}
+}
 async function delRecord(id){
   if(!confirm('Delete this record? This cannot be undone.'))return;
   try{
@@ -927,15 +956,6 @@ async function delRecord(id){
 }
 
 // ── IMPORT ─────────────────────────────────────────────────────────────────────
-function openImport(){
-  document.getElementById('i-upload').style.display='block';
-  document.getElementById('i-prog').style.display='none';
-  document.getElementById('i-prev').style.display='none';
-  document.getElementById('i-foot').style.display='none';
-  document.getElementById('csv-fname').textContent='';
-  document.getElementById('csv-in').value='';
-  prevRows=[];openOv('ov-import');
-}
 async function handleCSV(e){
   const file=e.target.files[0];if(!file)return;
   document.getElementById('csv-fname').textContent=file.name;
@@ -1037,55 +1057,29 @@ async function confirmImport(){
   const btn=document.getElementById('i-confirm');btn.disabled=true;btn.textContent='Importing…';
   let done=0;
   for(const p of toImp){try{await sbUpsert(p.rec);recs.push(p.rec);done++;}catch(e){console.error(p.rec.title,e)}}
-  applyF();buildDynF();closeOv('ov-import');toast(`Imported ${done} records`);
+  applyF();buildDynF();closeOv('ov-add');toast(`Imported ${done} records`);
 }
 
 // ── STATS ──────────────────────────────────────────────────────────────────────
 function openStats(){
   const vinyl=recs.filter(r=>(r.formats||[]).includes('VINYL')).length;
   const cd=recs.filter(r=>(r.formats||[]).includes('CD')).length;
-  const cass=recs.filter(r=>(r.formats||[]).includes('CASSETTE')).length;
+  const VARIOUS=/^various(\s+artists)?$/i;
+  const ac={};recs.forEach(r=>{if(r.artist&&!VARIOUS.test(r.artist.trim()))ac[r.artist]=(ac[r.artist]||0)+1});
+  const artists=Object.entries(ac).sort((a,b)=>b[1]-a[1]).slice(0,15).filter(([,c])=>c>1);
   const dc={};recs.forEach(r=>{if(r.year){const d=Math.floor(r.year/10)*10;dc[d]=(dc[d]||0)+1}});
-  const decades=Object.entries(dc).sort((a,b)=>b[0]-a[0]);
-  const maxD=Math.max(...decades.map(([,c])=>c),1);
+  const decades=Object.entries(dc).sort((a,b)=>b[1]-a[1]);
   const gc={};recs.forEach(r=>(r.genres||[]).forEach(g=>{gc[g]=(gc[g]||0)+1}));
-  const genres=Object.entries(gc).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const maxG=Math.max(...genres.map(([,c])=>c),1);
-  const ac={};recs.forEach(r=>{if(r.artist)ac[r.artist]=(ac[r.artist]||0)+1});
-  const artists=Object.entries(ac).sort((a,b)=>b[1]-a[1]).slice(0,10).filter(([,c])=>c>1);
-  const lc={};recs.forEach(r=>{if(r.label)lc[r.label]=(lc[r.label]||0)+1});
-  const labels=Object.entries(lc).sort((a,b)=>b[1]-a[1]).slice(0,8).filter(([,c])=>c>1);
-
+  const genres=Object.entries(gc).sort((a,b)=>b[1]-a[1]).slice(0,15);
   document.getElementById('stats-body').innerHTML=`
     <div class="sgrid">
       <div class="scard" onclick="resetAll();closeOv('ov-stats')"><div class="snum">${recs.length}</div><div class="slbl">Total Records</div></div>
       <div class="scard" onclick="setFmt('VINYL');closeOv('ov-stats')"><div class="snum" style="color:#f59e0b">${vinyl}</div><div class="slbl">Vinyl</div></div>
       <div class="scard" onclick="setFmt('CD');closeOv('ov-stats')"><div class="snum" style="color:#94a3b8">${cd}</div><div class="slbl">CD</div></div>
     </div>
-    ${decades.length?`<div class="ssec"><div class="ssechtitle">By Decade</div>${decades.map(([d,c])=>`
-      <div class="srow" onclick="setDec(${d});closeOv('ov-stats')">
-        <div class="srlbl">${d}s</div>
-        <div class="srtrack"><div class="srfill" style="width:${Math.round(c/maxD*100)}%"></div></div>
-        <div class="srcnt">${c}</div>
-      </div>`).join('')}</div>`:''}
-    ${genres.length?`<div class="ssec"><div class="ssechtitle">Top Genres</div>${genres.map(([g,c])=>`
-      <div class="srow" onclick="setGenre(${J(g)});closeOv('ov-stats')">
-        <div class="srlbl">${eh(g)}</div>
-        <div class="srtrack"><div class="srfill" style="width:${Math.round(c/maxG*100)}%"></div></div>
-        <div class="srcnt">${c}</div>
-      </div>`).join('')}</div>`:''}
-    ${artists.length?`<div class="ssec"><div class="ssechtitle">Multiple Releases</div>${artists.map(([a,c])=>`
-      <div class="srow" onclick="onSearch(${J(a)});document.getElementById('sq').value=${J(a)};document.getElementById('sqx').style.display='block';closeOv('ov-stats')">
-        <div class="srlbl">${eh(a)}</div>
-        <div class="srtrack"><div class="srfill" style="width:${Math.round(c/artists[0][1]*100)}%"></div></div>
-        <div class="srcnt">${c}</div>
-      </div>`).join('')}</div>`:''}
-    ${labels.length?`<div class="ssec"><div class="ssechtitle">Top Labels</div>${labels.map(([l,c])=>`
-      <div class="srow">
-        <div class="srlbl">${eh(l)}</div>
-        <div class="srtrack"><div class="srfill" style="width:${Math.round(c/labels[0][1]*100)}%;background:var(--accent-warm)"></div></div>
-        <div class="srcnt">${c}</div>
-      </div>`).join('')}</div>`:''}
+    ${artists.length?`<div class="ssec"><div class="ssechtitle">Artists</div><div class="rank-list">${artists.map(([a,c],i)=>`<div class="rank-item" onclick="onSearch(${J(a)});document.getElementById('sq').value=${J(a)};document.getElementById('sqx').style.display='block';closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${eh(a)}</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
+    ${decades.length?`<div class="ssec"><div class="ssechtitle">By Decade</div><div class="rank-list">${decades.map(([d,c],i)=>`<div class="rank-item" onclick="setDec(${d});closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${d}s</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
+    ${genres.length?`<div class="ssec"><div class="ssechtitle">Genres</div><div class="rank-list">${genres.map(([g,c],i)=>`<div class="rank-item" onclick="setGenre(${J(g)});closeOv('ov-stats')"><span class="rank-num">${i+1}</span><span class="rank-name">${eh(g)}</span><span class="rank-cnt">${c}</span></div>`).join('')}</div></div>`:''}
   `;
   openOv('ov-stats');
 }
@@ -1143,14 +1137,6 @@ async function doRestore(e){
     await load();toast(`Restored ${done} records`);
   }catch(e){toast('Restore failed: '+e.message,4000)}
   e.target.value='';
-}
-
-// ── CREDENTIALS ────────────────────────────────────────────────────────────────
-function openCred(){
-  document.getElementById('cr-url').value=SB_URL;
-  document.getElementById('cr-key').value=SB_KEY;
-  document.getElementById('cr-tok').value=DG_TOKEN;
-  openOv('ov-cred');
 }
 
 // ── MODAL / DROPDOWN UTILS ─────────────────────────────────────────────────────
