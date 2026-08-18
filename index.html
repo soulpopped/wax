@@ -44,8 +44,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-ico.on{border-color:var(--accent);color:var(--accent)}
 .btn-pri{background:var(--accent);color:#000;border:none;padding:6px 14px;border-radius:var(--radius);cursor:pointer;font-size:.84rem;font-weight:700;display:flex;align-items:center;gap:5px}
 .btn-pri:hover{background:var(--accent2)}
-.hrow2{display:flex;align-items:center;gap:6px;padding:7px 16px;overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--border)}
-.hrow2::-webkit-scrollbar{display:none}
+.hrow2{display:flex;align-items:center;gap:6px;padding:7px 16px;border-top:1px solid var(--border);flex-wrap:wrap}
 .flt-btn{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:4px 12px;border-radius:20px;cursor:pointer;font-size:.76rem;white-space:nowrap;flex-shrink:0;transition:all .15s}
 .flt-btn:hover{border-color:var(--text-muted);color:var(--text)}
 .flt-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(245,158,11,.1)}
@@ -62,7 +61,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .rart{width:100%;aspect-ratio:1/1;background:var(--surface2);border-radius:var(--radius);overflow:hidden;position:relative;border:1px solid var(--border)}
 .rart img{width:100%;height:100%;object-fit:cover;display:block}
 .art-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--border2);background:var(--surface2)}
-.fmt-badge{position:absolute;top:6px;right:6px;padding:2px 6px;border-radius:3px;font-size:.58rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.fmt-badge{position:absolute;bottom:6px;left:6px;padding:2px 6px;border-radius:3px;font-size:.58rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .badge-v{background:rgba(245,158,11,.92);color:#000}
 .badge-c{background:rgba(148,163,184,.9);color:#000}
 .badge-k{background:rgba(167,139,250,.88);color:#000}
@@ -268,7 +267,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="flt-sep"></div>
     <div class="dd" id="dd-sort">
-      <button class="sort-btn on" id="sort-lbl" onclick="toggleDD('dd-sort')">Date Added ↓ ▾</button>
+      <button class="sort-btn on" id="sort-lbl" onclick="toggleDD('dd-sort')">Title A→Z ▾</button>
       <div class="ddmenu">
         <div class="ddi" onclick="setSort('date_added','desc');closeDD()">Date Added ↓</div>
         <div class="ddi" onclick="setSort('date_added','asc');closeDD()">Date Added ↑</div>
@@ -506,7 +505,7 @@ const COLOR_MAP={
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let recs=[], filtered=[];
 let fmtF=null, genreF=null, decF=null, sq='';
-let sortF='date_added', sortD='desc';
+let sortF='title', sortD='asc';
 let selIds=new Set(), msMode=false;
 let curId=null, editId=null;
 let prevRows=[], aborted=false;
@@ -711,7 +710,7 @@ function setSort(f,d){
 }
 function onSearch(v){sq=v;document.getElementById('sqx').style.display=v?'block':'none';applyF()}
 function clearSearch(){document.getElementById('sq').value='';onSearch('')}
-function resetAll(){fmtF=null;genreF=null;decF=null;sq='';sortF='date_added';sortD='desc';document.getElementById('sq').value='';document.getElementById('sqx').style.display='none';document.getElementById('sort-lbl').textContent='Date Added ↓ ▾';applyF()}
+function resetAll(){fmtF=null;genreF=null;decF=null;sq='';sortF='title';sortD='asc';document.getElementById('sq').value='';document.getElementById('sqx').style.display='none';document.getElementById('sort-lbl').textContent='Title A→Z ▾';applyF()}
 function updFUI(){
   document.getElementById('fb-v').classList.toggle('on',fmtF==='VINYL');
   document.getElementById('fb-c').classList.toggle('on',fmtF==='CD');
@@ -722,7 +721,7 @@ function updFUI(){
   const db=document.getElementById('db');
   db.classList.toggle('on',!!decF);
   db.textContent=decF?decF+'s ✕ ▾':'Decade ▾';
-  document.getElementById('rcnt').textContent=filtered.length===recs.length?`${recs.length} records`:`${filtered.length} / ${recs.length}`;
+  document.getElementById('rcnt').textContent=filtered.length===recs.length?`${recs.length} albums`:`${filtered.length} / ${recs.length}`;
 }
 
 // ── GRID ───────────────────────────────────────────────────────────────────────
@@ -739,7 +738,7 @@ function card(r){
   const fmt=(r.formats||['VINYL'])[0];
   const bcls=fmt==='CD'?'badge-c':fmt==='CASSETTE'?'badge-k':'badge-v';
   const sel=selIds.has(r.id);
-  const showSub=r.sub_format&&r.sub_format!=='LP'&&r.sub_format!=='CD'&&r.sub_format!=='Cassette';
+  const showSub=r.sub_format&&r.sub_format!=='LP'&&r.sub_format!=='CD'&&r.sub_format!=='Cassette'&&r.sub_format!=='7"';
   const art=r.cover
     ?`<img src="${eh(r.cover)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`+`<div class="art-ph" style="display:none">🎵</div>`
     :`<div class="art-ph">🎵</div>`;
@@ -775,14 +774,16 @@ function exitMS(){msMode=false;selIds.clear();document.getElementById('mbar').cl
 function openDetail(id){
   const r=recs.find(x=>x.id===id);if(!r) return;
   curId=id;
-  document.getElementById('dtitle').textContent=r.title||'Record';
+  document.getElementById('dtitle').textContent='';
   const fmt=(r.formats||['VINYL'])[0];
   const bcls=fmt==='CD'?'badge-c':fmt==='CASSETTE'?'badge-k':'badge-v';
   const allgenres=[...(r.genres||[]),...(r.styles||[])];
-  const tlHtml=(r.tracklist||[]).length?`
+  const catNum=r.catalog_number&&!/^\d{10,}$/.test(r.catalog_number.trim())?r.catalog_number:null;
+  const tlen=(r.tracklist||[]).length;
+  const tlHtml=tlen?`
     <div class="tlist">
-      <button class="ctog" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▼ Tracklist (${r.tracklist.length})':'▶ Tracklist (${r.tracklist.length})')">▶ Tracklist (${r.tracklist.length})</button>
-      <div class="collp">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>
+      <button class="ctog" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▼ Tracklist (${tlen})':'▶ Tracklist (${tlen})'">▼ Tracklist (${tlen})</button>
+      <div class="collp open">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>
     </div>`:'';
   const crHtml=(r.credits||[]).length?`
     <div style="margin-top:6px">
@@ -804,8 +805,11 @@ function openDetail(id){
         ${(r.num_discs||1)>1?`<span class="chip">${r.num_discs} discs</span>`:''}
         ${r.color_variant?`<span class="cpill">◉ ${eh(r.color_variant)}</span>`:''}
       </div>
-      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}${r.catalog_number?' · '+eh(r.catalog_number):''}</span></div>`:''}
-      ${allgenres.length?`<div class="drow">${allgenres.map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}</div>`:''}
+      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}${catNum?' · '+eh(catNum):''}</span></div>`:''}
+      ${allgenres.length?`<div class="drow" style="flex-wrap:wrap;gap:4px">
+        ${allgenres.slice(0,3).map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}
+        ${allgenres.length>3?`<button class="ctog" style="font-size:.7rem;padding:1px 6px;border:1px solid var(--border2);border-radius:10px" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">+${allgenres.length-3} more</button><span style="display:none">${allgenres.slice(3).map(g=>`<span class="chip chip-a" style="margin:1px">${eh(g)}</span>`).join('')}</span>`:''}
+      </div>`:''}
       ${r.notes?`<div style="font-size:.79rem;color:var(--text-muted);border-left:2px solid var(--border2);padding-left:8px;margin-top:3px">${eh(r.notes)}</div>`:''}
       ${tlHtml}${crHtml}
     </div>
@@ -1166,6 +1170,13 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     document.querySelectorAll('.overlay:not(.h)').forEach(m=>m.classList.add('h'));
     closeDD();
+  }
+  if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&!document.getElementById('ov-detail').classList.contains('h')){
+    e.preventDefault();
+    const idx=filtered.findIndex(r=>r.id===curId);
+    if(idx===-1) return;
+    const next=e.key==='ArrowRight'?idx+1:idx-1;
+    if(next>=0&&next<filtered.length) openDetail(filtered[next].id);
   }
 });
 
