@@ -211,7 +211,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .artist-link:hover{color:var(--accent)!important}
 
 /* CARD HOVER EDIT */
-.card-edit{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.72);border:1px solid var(--border2);color:var(--text-muted);border-radius:3px;padding:2px 7px;font-size:.68rem;cursor:pointer;display:none;z-index:3;line-height:1.5}
+.card-edit{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.72);border:1px solid var(--border2);color:var(--text-muted);border-radius:3px;padding:2px 7px;font-size:.68rem;cursor:pointer;display:none;z-index:3;line-height:1.5}
 .rcard:hover .card-edit{display:block}
 .card-edit:hover{border-color:var(--accent);color:var(--accent)}
 
@@ -330,7 +330,7 @@ body.public-mode #mbar{display:none!important}
 <!-- DETAIL MODAL -->
 <div class="overlay h" id="ov-detail" onclick="ovClick(event,'ov-detail')">
   <div class="modal wide" id="m-detail" style="position:relative">
-    <button class="btn sm" style="position:absolute;top:10px;left:12px;z-index:10" onclick="openEdit(curId)">Edit</button>
+    <button class="btn sm" style="position:absolute;top:10px;right:50px;z-index:10" onclick="openEdit(curId)">Edit</button>
     <button class="mcls-btn" style="position:absolute;top:10px;right:12px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
     <div class="mbody" id="dbody" style="padding-top:16px"></div>
   </div>
@@ -508,12 +508,17 @@ body.public-mode #mbar{display:none!important}
 
 <!-- TRACKLIST EDIT MODAL -->
 <div class="overlay h" id="ov-tracklist" onclick="ovClick(event,'ov-tracklist')">
-  <div class="modal" id="m-tracklist" style="max-width:540px">
+  <div class="modal" id="m-tracklist" style="max-width:760px">
     <div class="mhdr">
       <div class="mtitle" id="tl-title">Edit Tracklist</div>
       <button class="mcls-btn" onclick="closeOv('ov-tracklist')">✕</button>
     </div>
     <div class="mbody" id="tl-body" style="padding-bottom:4px">
+      <div style="display:flex;gap:7px;margin-bottom:4px;padding:0 2px">
+        <span style="width:52px;flex:none;font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em">Track</span>
+        <span style="width:62px;flex:none;font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em">Duration</span>
+        <span style="flex:1;font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em">Title</span>
+      </div>
       <div id="tl-rows"></div>
       <button class="btn" style="margin-top:8px;font-size:.8rem" onclick="addTrackRow()">+ Add Track</button>
     </div>
@@ -839,7 +844,7 @@ function openDetail(id){
     <div class="tlist">
       <div style="display:flex;align-items:center;gap:8px">
         ${tlen?`<button class="ctog" onclick="this.closest('.tlist').querySelector('.collp').classList.toggle('open');this.textContent=this.closest('.tlist').querySelector('.collp').classList.contains('open')?'▼ Tracklist (${tlen})':'▶ Tracklist (${tlen})'">▼ Tracklist (${tlen})</button>`:'<span style="font-size:.75rem;color:var(--text-dim)">No tracklist</span>'}
-        ${!isPublic?`<button class="ctog" style="font-size:.68rem;opacity:.7" onclick="openTracklist('${r.id}')">Edit Tracklist</button>`:''}
+        ${!isPublic?`<button class="ctog" style="font-size:.68rem;opacity:.6" onclick="openTracklist('${r.id}')">(edit)</button>`:''}
       </div>
       ${tlen?`<div class="collp open">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>`:''}
     </div>`;
@@ -1137,11 +1142,11 @@ function openTracklist(id){
   closeOv('ov-detail');openOv('ov-tracklist');
 }
 function trackRowHTML(i){
-  return`<div class="frow" id="tl-row-${i}" style="align-items:center;gap:6px;margin-bottom:4px">
-    <input class="finp" id="tl-pos-${i}" style="width:48px;flex:none" placeholder="#">
-    <input class="finp" id="tl-ttl-${i}" style="flex:1" placeholder="Track title">
-    <input class="finp" id="tl-dur-${i}" style="width:60px;flex:none" placeholder="0:00">
-    <button class="btn" style="flex:none;padding:3px 8px;font-size:.8rem" onclick="removeTrackRow(this)">✕</button>
+  return`<div id="tl-row-${i}" style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+    <input class="finp" id="tl-pos-${i}" style="width:52px;flex:none" placeholder="#">
+    <input class="finp" id="tl-dur-${i}" style="width:62px;flex:none" placeholder="0:00">
+    <input class="finp" id="tl-ttl-${i}" style="flex:1;min-width:0" placeholder="Track title">
+    <button class="btn" style="flex:none;padding:3px 9px;font-size:.85rem;line-height:1" onclick="removeTrackRow(this)">✕</button>
   </div>`;
 }
 function addTrackRow(){
@@ -1159,7 +1164,7 @@ async function saveTracklist(){
   const rows=[...document.getElementById('tl-rows').children];
   const tracklist=rows.map(row=>{
     const inputs=row.querySelectorAll('input');
-    return{pos:inputs[0].value.trim(),title:inputs[1].value.trim(),duration:inputs[2].value.trim()};
+    return{pos:inputs[0].value.trim(),duration:inputs[1].value.trim(),title:inputs[2].value.trim()};
   }).filter(t=>t.title);
   try{
     await sbUpdate(_tlEditId,{tracklist,updated_at:new Date().toISOString()});
