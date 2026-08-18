@@ -323,6 +323,7 @@ body.public-mode #mbar{display:none!important}
   <button class="mact" onclick="bulkGenre()">+ Genre</button>
   <button class="mact" onclick="bulkFmt()">Format</button>
   <button class="mact" onclick="bulkRenameArtist()">Artist</button>
+  <button class="mact" onclick="bulkRenameLabel()">Label</button>
   <button class="mact del" onclick="bulkDel()">Delete</button>
   <button class="mcls" onclick="exitMS()">✕</button>
 </div>
@@ -868,7 +869,7 @@ function openDetail(id){
         ${(r.num_discs||1)>1?`<span class="chip">${r.num_discs} discs</span>`:''}
         ${r.color_variant?`<span class="cpill">◉ ${eh(r.color_variant)}</span>`:''}
       </div>
-      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}</span></div>`:''}
+      ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval artist-link" onclick="filterByArtist('${r.label}');closeOv('ov-detail')">${eh(r.label)}</span></div>`:''}
       ${allgenres.length?`<div class="drow" style="flex-wrap:wrap;gap:4px">
         ${allgenres.slice(0,5).map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}
         ${allgenres.length>5?`<button class="ctog" style="font-size:.7rem;padding:1px 6px;border:1px solid var(--border2);border-radius:10px" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">+${allgenres.length-5} more</button><span style="display:none">${allgenres.slice(5).map(g=>`<span class="chip chip-a" style="margin:1px">${eh(g)}</span>`).join('')}</span>`:''}
@@ -1334,6 +1335,12 @@ function bulkRenameArtist(){
   document.getElementById('bulk-body').innerHTML=`<div class="fgrp"><label class="flbl">New artist name (overwrites existing)</label><input type="text" class="finp" id="bl-artist" placeholder="e.g. Radiohead"></div>`;
   openOv('ov-bulk');
 }
+function bulkRenameLabel(){
+  bulkAct='label';
+  document.getElementById('bulk-title').textContent='Set Label for Selected';
+  document.getElementById('bulk-body').innerHTML=`<div class="fgrp"><label class="flbl">Label name (overwrites existing)</label><input type="text" class="finp" id="bl-label" placeholder="e.g. XL Recordings"></div>`;
+  openOv('ov-bulk');
+}
 async function applyBulk(){
   if(!bulkAct||!selIds.size)return;
   let done=0;
@@ -1343,6 +1350,7 @@ async function applyBulk(){
     if(bulkAct==='genre'){const gv=g('bl-genre');if(!gv)continue;u={genres:[...(r.genres||[]).filter(x=>x!==gv),gv],updated_at:new Date().toISOString()}}
     else if(bulkAct==='fmt'){const fv=document.getElementById('bl-fmt')?.value;u={formats:[fv],updated_at:new Date().toISOString()}}
     else if(bulkAct==='artist'){const av=g('bl-artist');if(!av)continue;u={artist:av,updated_at:new Date().toISOString()}}
+    else if(bulkAct==='label'){const lv=g('bl-label');if(!lv)continue;u={label:lv,updated_at:new Date().toISOString()}}
     try{await sbUpdate(id,u);Object.assign(r,u);done++;}catch(e){}
   }
   applyF();buildDynF();closeOv('ov-bulk');exitMS();toast(`Updated ${done} records`);
