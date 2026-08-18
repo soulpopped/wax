@@ -322,7 +322,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <!-- DETAIL MODAL -->
 <div class="overlay h" id="ov-detail" onclick="ovClick(event,'ov-detail')">
   <div class="modal wide" id="m-detail" style="position:relative">
-    <button class="btn sm" style="position:absolute;top:12px;right:50px;z-index:10" onclick="openEdit(curId)">Edit</button>
+    <button class="btn sm" style="position:absolute;top:10px;left:12px;z-index:10" onclick="openEdit(curId)">Edit</button>
     <button class="mcls-btn" style="position:absolute;top:10px;right:12px;z-index:10" onclick="closeOv('ov-detail')">✕</button>
     <div class="mbody" id="dbody" style="padding-top:16px"></div>
   </div>
@@ -332,7 +332,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <div class="overlay h" id="ov-add" onclick="ovClick(event,'ov-add')">
   <div class="modal" id="m-add">
     <div class="mhdr">
-      <div class="mtitle">Add Record</div>
+      <div class="mtitle" id="add-mtitle">Add Record</div>
       <button class="mcls-btn" onclick="closeOv('ov-add')">✕</button>
     </div>
     <div class="mbody">
@@ -470,6 +470,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="fgrp"><label class="flbl">Notes</label><textarea class="ftxt" id="e-notes"></textarea></div>
     </div>
     <div class="mfoot">
+      <button class="btn" style="margin-right:auto;opacity:.7" onclick="openFixMatch()">Fix Match</button>
       <button class="btn" onclick="closeOv('ov-edit')">Cancel</button>
       <button class="btn ac" onclick="saveEdit()">Save</button>
       <button class="btn ac" onclick="saveEditNext()">Save ▶</button>
@@ -493,6 +494,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="mfoot">
       <button class="btn" onclick="closeOv('ov-bulk')">Cancel</button>
       <button class="btn ac" onclick="applyBulk()">Apply to Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRACKLIST EDIT MODAL -->
+<div class="overlay h" id="ov-tracklist" onclick="ovClick(event,'ov-tracklist')">
+  <div class="modal" id="m-tracklist" style="max-width:540px">
+    <div class="mhdr">
+      <div class="mtitle" id="tl-title">Edit Tracklist</div>
+      <button class="mcls-btn" onclick="closeOv('ov-tracklist')">✕</button>
+    </div>
+    <div class="mbody" id="tl-body" style="padding-bottom:4px">
+      <div id="tl-rows"></div>
+      <button class="btn" style="margin-top:8px;font-size:.8rem" onclick="addTrackRow()">+ Add Track</button>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeOv('ov-tracklist')">Cancel</button>
+      <button class="btn ac" onclick="saveTracklist()">Save Tracklist</button>
     </div>
   </div>
 </div>
@@ -530,6 +549,7 @@ let prevRows=[], aborted=false;
 let bulkAct=null;
 let _ddTmr=null, _sqTmr=null;
 let _lastDgHTML='', _pendingDgRec=null;
+let fixMatchId=null;
 
 // ── AUTH ───────────────────────────────────────────────────────────────────────
 function simpleHash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h)}
@@ -772,7 +792,6 @@ function card(r){
     <div class="rart">
       ${art}
       <span class="fmt-badge ${bcls}">${fmtLabel(fmt)}</span>
-      ${showSub?`<span class="sub-badge">${eh(r.sub_format)}</span>`:''}
       <div class="ccheck${sel?' ck':''}" data-id="${r.id}">✓</div>
       <button class="card-edit" onclick="event.stopPropagation();openEdit('${r.id}')">Edit</button>
     </div>
@@ -807,11 +826,14 @@ function openDetail(id){
   const bcls=fmt==='CD'?'badge-c':fmt==='CASSETTE'?'badge-k':'badge-v';
   const allgenres=[...(r.genres||[]),...(r.styles||[])];
   const tlen=(r.tracklist||[]).length;
-  const tlHtml=tlen?`
+  const tlHtml=`
     <div class="tlist">
-      <button class="ctog" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▼ Tracklist (${tlen})':'▶ Tracklist (${tlen})'">▼ Tracklist (${tlen})</button>
-      <div class="collp open">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>
-    </div>`:'';
+      <div style="display:flex;align-items:center;gap:8px">
+        ${tlen?`<button class="ctog" onclick="this.closest('.tlist').querySelector('.collp').classList.toggle('open');this.textContent=this.closest('.tlist').querySelector('.collp').classList.contains('open')?'▼ Tracklist (${tlen})':'▶ Tracklist (${tlen})'">▼ Tracklist (${tlen})</button>`:'<span style="font-size:.75rem;color:var(--text-dim)">No tracklist</span>'}
+        <button class="ctog" style="font-size:.68rem;opacity:.7" onclick="openTracklist('${r.id}')">Edit Tracklist</button>
+      </div>
+      ${tlen?`<div class="collp open">${(r.tracklist||[]).map(t=>`<div class="trow"><span class="tpos">${eh(t.pos)}</span><span class="tname">${eh(t.title)}</span>${t.duration?`<span class="tdur">${eh(t.duration)}</span>`:''}</div>`).join('')}</div>`:''}
+    </div>`;
   const crHtml=(r.credits||[]).length?`
     <div style="margin-top:6px">
       <button class="ctog" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▼ Credits':'▶ Credits'">▶ Credits</button>
@@ -834,11 +856,12 @@ function openDetail(id){
       </div>
       ${r.label?`<div class="drow"><span class="dlbl">Label</span><span class="dval">${eh(r.label)}</span></div>`:''}
       ${allgenres.length?`<div class="drow" style="flex-wrap:wrap;gap:4px">
-        ${allgenres.slice(0,3).map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}
-        ${allgenres.length>3?`<button class="ctog" style="font-size:.7rem;padding:1px 6px;border:1px solid var(--border2);border-radius:10px" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">+${allgenres.length-3} more</button><span style="display:none">${allgenres.slice(3).map(g=>`<span class="chip chip-a" style="margin:1px">${eh(g)}</span>`).join('')}</span>`:''}
+        ${allgenres.slice(0,5).map(g=>`<span class="chip chip-a">${eh(g)}</span>`).join('')}
+        ${allgenres.length>5?`<button class="ctog" style="font-size:.7rem;padding:1px 6px;border:1px solid var(--border2);border-radius:10px" onclick="this.nextElementSibling.style.display='inline';this.style.display='none'">+${allgenres.length-5} more</button><span style="display:none">${allgenres.slice(5).map(g=>`<span class="chip chip-a" style="margin:1px">${eh(g)}</span>`).join('')}</span>`:''}
       </div>`:''}
       ${r.notes?`<div style="font-size:.79rem;color:var(--text-muted);border-left:2px solid var(--border2);padding-left:8px;margin-top:3px">${eh(r.notes)}</div>`:''}
-      ${tlHtml}${crHtml}
+      ${tlHtml}
+      ${crHtml}
     </div>
   </div>`;
   openOv('ov-detail');
@@ -846,6 +869,8 @@ function openDetail(id){
 
 // ── ADD ────────────────────────────────────────────────────────────────────────
 function openAdd(){
+  fixMatchId=null;
+  document.getElementById('add-mtitle').textContent='Add Record';
   switchTab('search');
   document.getElementById('dsq').value='';
   document.getElementById('dresults').innerHTML='';
@@ -945,12 +970,36 @@ function restoreDgResults(){
 }
 async function confirmAddDg(){
   const rec=_pendingDgRec;if(!rec)return;
-  try{
-    await sbUpsert(rec);recs.unshift(rec);applyF();buildDynF();
-    _pendingDgRec=null;_lastDgHTML='';
-    closeOv('ov-add');toast('Added: '+rec.title);
-    setTimeout(()=>openDetail(rec.id),300);
-  }catch(e){toast('Error: '+e.message,4000)}
+  if(fixMatchId){
+    // Re-match existing record to a new Discogs release
+    const updates={
+      title:rec.title,artist:rec.artist,year:rec.year,
+      formats:rec.formats,sub_format:rec.sub_format,color_variant:rec.color_variant,
+      label:rec.label,catalog_number:rec.catalog_number,
+      genres:rec.genres,styles:rec.styles,
+      discogs_id:rec.discogs_id,discogs_master_id:rec.discogs_master_id,
+      cover:rec.cover,tracklist:rec.tracklist,credits:rec.credits,
+      num_discs:rec.num_discs,updated_at:new Date().toISOString()
+      // preserves: notes, sort_title, date_added
+    };
+    try{
+      await sbUpdate(fixMatchId,updates);
+      const i=recs.findIndex(x=>x.id===fixMatchId);
+      if(i>=0) recs[i]={...recs[i],...updates};
+      applyF();buildDynF();
+      _pendingDgRec=null;_lastDgHTML='';
+      const id=fixMatchId;fixMatchId=null;
+      closeOv('ov-add');toast('Match updated: '+rec.title);
+      setTimeout(()=>openDetail(id),300);
+    }catch(e){toast('Error: '+e.message,4000)}
+  } else {
+    try{
+      await sbUpsert(rec);recs.unshift(rec);applyF();buildDynF();
+      _pendingDgRec=null;_lastDgHTML='';
+      closeOv('ov-add');toast('Added: '+rec.title);
+      setSort('date_added','desc');
+    }catch(e){toast('Error: '+e.message,4000)}
+  }
 }
 async function saveManual(){
   const title=document.getElementById('m-title').value.trim();
@@ -971,7 +1020,7 @@ async function saveManual(){
     discogs_id:null,discogs_master_id:null,num_discs:1,
     date_added:new Date().toISOString(),updated_at:new Date().toISOString()
   };
-  try{await sbUpsert(rec);recs.unshift(rec);applyF();buildDynF();closeOv('ov-add');toast('Added: '+rec.title);}
+  try{await sbUpsert(rec);recs.unshift(rec);applyF();buildDynF();closeOv('ov-add');toast('Added: '+rec.title);setSort('date_added','desc');}
   catch(e){toast('Error: '+e.message,4000)}
 }
 
@@ -1036,6 +1085,79 @@ async function delRecord(id){
   try{
     await sbDel(id);recs=recs.filter(r=>r.id!==id);
     applyF();buildDynF();closeOv('ov-edit');closeOv('ov-detail');toast('Deleted');
+  }catch(e){toast('Error: '+e.message,4000)}
+}
+
+// ── FIX MATCH ──────────────────────────────────────────────────────────────────
+function openFixMatch(){
+  const r=recs.find(x=>x.id===editId);if(!r)return;
+  fixMatchId=editId;
+  document.getElementById('add-mtitle').textContent='Fix Match';
+  switchTab('search');
+  const dsq=document.getElementById('dsq');
+  dsq.value=(r.artist&&r.title)?`${r.artist} ${r.title}`:r.title||'';
+  document.getElementById('dresults').innerHTML='';
+  _lastDgHTML='';_pendingDgRec=null;
+  closeOv('ov-edit');openOv('ov-add');
+  // Auto-run search with the pre-filled query
+  if(dsq.value) runDSearch(dsq.value);
+}
+
+// ── TRACKLIST EDIT ─────────────────────────────────────────────────────────────
+let _tlEditId=null, _tlRowCtr=0;
+function openTracklist(id){
+  const r=recs.find(x=>x.id===id);if(!r)return;
+  _tlEditId=id;
+  document.getElementById('tl-title').textContent=`Edit Tracklist — ${r.title||''}`;
+  const rows=document.getElementById('tl-rows');
+  _tlRowCtr=0;
+  const tl=r.tracklist||[];
+  rows.innerHTML='';
+  tl.forEach(t=>{
+    const i=_tlRowCtr++;
+    const div=document.createElement('div');
+    div.innerHTML=trackRowHTML(i);
+    const el=div.firstElementChild;
+    rows.appendChild(el);
+    el.querySelector(`#tl-pos-${i}`).value=t.pos||'';
+    el.querySelector(`#tl-ttl-${i}`).value=t.title||'';
+    el.querySelector(`#tl-dur-${i}`).value=t.duration||'';
+  });
+  closeOv('ov-detail');openOv('ov-tracklist');
+}
+function trackRowHTML(i){
+  return`<div class="frow" id="tl-row-${i}" style="align-items:center;gap:6px;margin-bottom:4px">
+    <input class="finp" id="tl-pos-${i}" style="width:48px;flex:none" placeholder="#">
+    <input class="finp" id="tl-ttl-${i}" style="flex:1" placeholder="Track title">
+    <input class="finp" id="tl-dur-${i}" style="width:60px;flex:none" placeholder="0:00">
+    <button class="btn" style="flex:none;padding:3px 8px;font-size:.8rem" onclick="removeTrackRow(this)">✕</button>
+  </div>`;
+}
+function addTrackRow(){
+  const rows=document.getElementById('tl-rows');
+  const i=_tlRowCtr++;
+  const div=document.createElement('div');
+  div.innerHTML=trackRowHTML(i);
+  rows.appendChild(div.firstElementChild);
+}
+function removeTrackRow(btn){
+  btn.closest('[id^="tl-row-"]').remove();
+}
+async function saveTracklist(){
+  if(!_tlEditId)return;
+  const rows=[...document.getElementById('tl-rows').children];
+  const tracklist=rows.map(row=>{
+    const inputs=row.querySelectorAll('input');
+    return{pos:inputs[0].value.trim(),title:inputs[1].value.trim(),duration:inputs[2].value.trim()};
+  }).filter(t=>t.title);
+  try{
+    await sbUpdate(_tlEditId,{tracklist,updated_at:new Date().toISOString()});
+    const i=recs.findIndex(x=>x.id===_tlEditId);
+    if(i>=0) recs[i]={...recs[i],tracklist};
+    applyF();
+    const id=_tlEditId;_tlEditId=null;
+    closeOv('ov-tracklist');toast('Tracklist saved');
+    setTimeout(()=>openDetail(id),200);
   }catch(e){toast('Error: '+e.message,4000)}
 }
 
@@ -1241,7 +1363,7 @@ async function doRestore(e){
 
 // ── MODAL / DROPDOWN UTILS ─────────────────────────────────────────────────────
 function openOv(id){document.getElementById(id).classList.remove('h')}
-function closeOv(id){document.getElementById(id).classList.add('h')}
+function closeOv(id){document.getElementById(id).classList.add('h');if(id==='ov-add'){fixMatchId=null;const t=document.getElementById('add-mtitle');if(t)t.textContent='Add Record';}}
 function ovClick(e,id){if(e.target.id===id)closeOv(id)}
 function toggleDD(id){
   const menu=document.querySelector(`#${id} .ddmenu`);if(!menu)return;
