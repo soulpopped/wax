@@ -356,6 +356,10 @@ body.public-mode #mbar{display:none!important}
         <div class="fgrp">
           <input type="text" class="finp" id="dsq" placeholder="Artist or album title…" oninput="ddSearch(this.value)">
         </div>
+        <div style="display:flex;gap:7px;align-items:center;margin-bottom:10px">
+          <input type="text" class="finp" id="dupc" placeholder="UPC / barcode…" style="flex:1" onkeydown="if(event.key==='Enter')runUPCSearch()">
+          <button class="btn" onclick="runUPCSearch()" style="white-space:nowrap">Search UPC</button>
+        </div>
         <div id="dresults"></div>
       </div>
       <!-- MANUAL TAB -->
@@ -602,6 +606,7 @@ async function dgGet(path){
 }
 const dgRelease=id=>dgGet(`/releases/${id}`);
 const dgSearch=q=>dgGet(`/database/search?q=${encodeURIComponent(q)}&type=release&per_page=12`);
+const dgSearchUPC=upc=>dgGet(`/database/search?barcode=${encodeURIComponent(upc.trim())}&type=release&per_page=12`);
 
 // ── FORMAT PARSING ─────────────────────────────────────────────────────────────
 function parseFmt(fmt){
@@ -889,6 +894,7 @@ function openAdd(){
   document.getElementById('add-mtitle').textContent='Add Record';
   switchTab('search');
   document.getElementById('dsq').value='';
+  document.getElementById('dupc').value='';
   document.getElementById('dresults').innerHTML='';
   _lastDgHTML='';_pendingDgRec=null;
   openOv('ov-add');
@@ -918,6 +924,27 @@ function ddSearch(q){
   clearTimeout(_dsqT);
   if(!q.trim()){document.getElementById('dresults').innerHTML='';return}
   _dsqT=setTimeout(()=>runDSearch(q),480);
+}
+async function runUPCSearch(){
+  const upc=document.getElementById('dupc').value.trim();
+  if(!upc)return;
+  document.getElementById('dsq').value='';
+  const el=document.getElementById('dresults');
+  el.innerHTML='<div style="color:var(--text-dim);font-size:.81rem;padding:8px">Searching…</div>';
+  try{
+    const data=await dgSearchUPC(upc);
+    const rs=(data.results||[]).slice(0,10);
+    if(!rs.length){el.innerHTML='<div style="color:var(--text-dim);font-size:.81rem;padding:8px">No results for that barcode</div>';return}
+    const html=rs.map(r=>`<div class="dr" onclick="pickDg(${r.id})">
+      ${r.cover_image?`<img class="dthumb" src="${eh(r.cover_image)}" onerror="this.style.display='none'">`:`<div class="dthumb-ph">🎵</div>`}
+      <div class="dri">
+        <div class="drt">${eh(r.title)}</div>
+        <div class="drs">${[r.year,(r.format||[]).join(', ')].filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>`).join('');
+    _lastDgHTML=html;
+    el.innerHTML=html;
+  }catch(e){el.innerHTML=`<div style="color:var(--danger);font-size:.81rem;padding:8px">Error: ${eh(e.message)}</div>`}
 }
 async function runDSearch(q){
   const el=document.getElementById('dresults');
